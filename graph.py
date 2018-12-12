@@ -1,3 +1,8 @@
+"""
+
+This graph analysis is inspired by https://github.com/finalfire/medium-blog-codes/blob/master/one_hundred_years_of_solitude/Graph_Analysis.ipynb
+"""
+
 import re
 import nltk
 import codecs
