@@ -8,6 +8,7 @@ import nltk
 import codecs
 from operator import itemgetter
 import pandas as pd
+import string
 def build_regexp(c):
     """
     Creates the appropriate regex for the expressions
@@ -27,9 +28,9 @@ def build_regexp(c):
 
 ## save everything
 with codecs.open('characters_list.txt', encoding='iso-8859-1') as x:
-    characters = [l.strip() for l in x]
+    characters = [l.strip().lower() for l in x]
 
-with codecs.open('book.txt', encoding='iso-8859-1') as x:
+with codecs.open('processed_book.txt', encoding='iso-8859-1') as x:
     text = [l.strip() for l in x]
 raw = ' '.join(text)
 
@@ -41,7 +42,6 @@ for it, c in enumerate(characters):
     template = '{}'.format(it)
     regexp = re.compile(build_regexp(c))
     raw = re.sub(regexp, template, raw)
-
 
 
 
@@ -79,31 +79,82 @@ class Graph:
 				del self.edges[n][node]
 
 	def rename_node(self, new_name, old_name):
+		new_name =new_name
+		old_name = old_name.lower()
 		if old_name in self.vertices:
 			self.vertices.remove(old_name)
 			self.vertices.add(new_name)
 
 		if old_name in self.edges:
 			self.edges[new_name] = self.edges[old_name]
-
+			del self.edges[old_name]
 		for n in self.edges:
 			if old_name in self.edges[n]:
 				self.edges[n][new_name] = self.edges[n][old_name]
+				del self.edges[n][old_name]
 
 
+	def capitalize(self):
 
+		vertices = set()
+		for n in self.vertices:
+			names = n.split(" ")
+			capital = []
+			for i in names:
+				capital.append(i.capitalize())
+
+			new_name = " ".join(capital)
+
+			vertices.add(new_name)
+
+		edges = {}
+
+		mapping = {}
+		for k in self.edges:
+			names = k.split(" ")
+			capital = []
+			for i in names:
+				capital.append(i.capitalize())
+
+			new_name = " ".join(capital)
+
+			edges[new_name] = {}	
+
+			mapping[k] = new_name
+		
+
+		for k in self.edges:
+			edges[mapping[k]] = []
+			for n in self.edges[k]:
+
+				names = n.split(" ")
+				capital = []
+				for i in names:
+					capital.append(i.capitalize())
+
+				new_name = " ".join(capital)
+
+				edges[mapping[k]].append(new_name)	
+
+		
+		self.edges = edges
+		self.vertices = vertices
 # build the graph
 g = Graph()
 # add nodes
+
 for c in characters:
-    g.add_node(c)
+	g.add_node(c)
+	print(c)
 
 # tokenize the text
 words = [n for n in nltk.word_tokenize(raw) if n != ',' and n != '.']
 
+print(words)
 # utils list
 characters_rep = [str(i) for i in range(len(characters))]
 
+print(characters_rep)
 # forward threshold
 fwd_t = 30
 # check for each character
@@ -131,12 +182,13 @@ for node in removed:
         g.remove_node(node)
 print('Total characters minus solitude nodes:', len(g.nodes()))
 
-tups = [("Melquades", "Melquiades"), ("Jos Arcadio Buenda", 'Jose Arcadio Buendia'), ("Colonel Aureliano Buenda", 'Colonel Aureliano Buendia'), ("Visitacon", 'Visitacion'), ("Seora (Moscote)", "Senora (Moscote)"),("Santa Sofa de la Piedad", "Santa Sofia de la Piedad"), ("Magnfico", "Magnifico"), ("Gerineldo (Mrquez)", "Gerineldo (Marquez)"), ("Colonel Gerineldo Mrquez", "Colonel Gerineldo Marquez"), ("Jos Arcadio Segundo", "Jose Arcadio Segundo"), ("Jos Raquel Moncada", "Jose Raquel Moncada"), ("lvaro", "Alvaro"), ("Germn", "German"), ("Doa Fernanda del Carpio de Buenda", "Dona Fernanda del Carpio de Buendia"), ("rsula (Iguarn)", "Ursula (Iguaran)")]
+tups = [("Melquades", "Melquiades"), ("Jos Arcadio Buenda", 'Jose Arcadio Buendia'), ("Colonel Aureliano Buenda", 'Colonel Aureliano Buendia'), ("Visitacin", 'Visitacion'), ("Seora (Moscote)", "Senora (Moscote)"),("Santa Sofa de la Piedad", "Santa Sofia de la Piedad"), ("Magnfico (Visbal)", "Magnifico (Visbal)"), ("Gerineldo (Mrquez)", "Gerineldo (Marquez)"), ("Colonel Gerineldo Mrquez", "Colonel Gerineldo Marquez"), ("Jos Arcadio Segundo", "Jose Arcadio Segundo"), ("Jos Raquel Moncada", "Jose Raquel Moncada"), ("lvaro", "Alvaro"), ("Germn", "German"), ("Doa Fernanda del Carpio de Buenda", "Dona Fernanda del Carpio de Buendia"), ("rsula (Iguarn)", "Ursula (Iguaran)")]
 for i in tups:
 	old_name, new_name = i
 
 	g.rename_node(new_name, old_name)
 
+g.capitalize()
 import networkx as nx 
 import matplotlib.pyplot as plt
 graph = nx.Graph()
@@ -147,9 +199,6 @@ for i in g.edges:
 
 node_and_degree = graph.degree()
 
-print(graph.nodes())
-graph.remove_node(u"rsula (Iguarn)")
-graph.remove_node(u"Gerineldo (Mrquez)")
 colors = {}
 colors['ID'] = []
 colors['myvalue'] = []
