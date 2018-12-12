@@ -1,7 +1,8 @@
 import re
 import nltk
-
-
+import codecs
+from operator import itemgetter
+import pandas as pd
 def build_regexp(c):
     """
     Creates the appropriate regex for the expressions
@@ -20,10 +21,10 @@ def build_regexp(c):
 
 
 ## save everything
-with open('characters_list.txt') as x:
+with codecs.open('characters_list.txt', encoding='iso-8859-1') as x:
     characters = [l.strip() for l in x]
 
-with open('text') as x:
+with codecs.open('book.txt', encoding='iso-8859-1') as x:
     text = [l.strip() for l in x]
 raw = ' '.join(text)
 
@@ -37,12 +38,57 @@ for it, c in enumerate(characters):
     raw = re.sub(regexp, template, raw)
 
 
-import networkx as nx
 
-print('Total characters:', len(characters))
+
+
+class Graph:
+
+	def __init__(self):
+		self.vertices = set()
+		self.edges = {}
+
+	def add_node(self, node):
+		self.vertices.add(node)
+		self.edges[node] = {}
+	def add_edge(self, src_node, target_node, weight):
+		if target_node not in self.edges[src_node]:
+			self.edges[src_node][target_node] = {}
+			self.edges[src_node][target_node]['weight'] = 0
+			self.edges[src_node][target_node]['weight'] += weight
+
+		else:
+			self.edges[src_node][target_node]['weight'] += weight
+
+
+	def nodes(self):
+		return self.vertices
+
+	def remove_node(self, node):
+
+		self.vertices.remove(node)
+
+		del self.edges[node]
+
+		for n in self.vertices:
+			if node in self.edges[n]:
+				del self.edges[n][node]
+
+	def rename_node(self, new_name, old_name):
+		if old_name in self.vertices:
+			self.vertices.remove(old_name)
+			self.vertices.add(new_name)
+
+		if old_name in self.edges:
+			self.edges[new_name] = self.edges[old_name]
+
+		for n in self.edges:
+			if old_name in self.edges[n]:
+				self.edges[n][new_name] = self.edges[n][old_name]
+
+
 
 # build the graph
-g = nx.Graph()
+g = Graph()
 # add nodes
 for c in characters:
     g.add_node(c)
@@ -64,42 +110,87 @@ for it, c in enumerate(characters):
                     if words[d] in characters_rep and words[d] != word:
                         src_node = chars[int(word)]
                         target_node = chars[int(words[d])]
-                        if target_node not in g[src_node]:
+                        if target_node not in g.edges[src_node]:
                             g.add_edge(src_node, target_node, weight=1)
                         else:
-                            g[src_node][target_node]['weight'] += 1
+                            g.edges[src_node][target_node]['weight'] += 1
 
 # remove nodes w/o edges
 removed = set()
 for node in g.nodes():
-    if not g[node]:
+    if not g.edges[node]:
         print('Node w/o edges:', node)
-        g.remove_node(node)
         removed.add(node)
 
+for node in removed:
+        g.remove_node(node)
 print('Total characters minus solitude nodes:', len(g.nodes()))
 
-nx.write_graphml(g, 'output.graphml')
+tups = [("Melquades", "Melquiades"), ("Jos Arcadio Buenda", 'Jose Arcadio Buendia'), ("Colonel Aureliano Buenda", 'Colonel Aureliano Buendia'), ("Visitacon", 'Visitacion'), ("Seora (Moscote)", "Senora (Moscote)"),("Santa Sofa de la Piedad", "Santa Sofia de la Piedad"), ("Magnfico", "Magnifico"), ("Gerineldo (Mrquez)", "Gerineldo (Marquez)"), ("Colonel Gerineldo Mrquez", "Colonel Gerineldo Marquez"), ("Jos Arcadio Segundo", "Jose Arcadio Segundo"), ("Jos Raquel Moncada", "Jose Raquel Moncada"), ("lvaro", "Alvaro"), ("Germn", "German"), ("Doa Fernanda del Carpio de Buenda", "Dona Fernanda del Carpio de Buendia"), ("rsula (Iguarn)", "Ursula (Iguaran)")]
+for i in tups:
+	old_name, new_name = i
 
-# save to neo4j
-from py2neo import Graph, Node, Relationship
+	g.rename_node(new_name, old_name)
 
-g4 = Graph(user="neo4j", password="")
-tx = g4.begin()
+import networkx as nx 
+import matplotlib.pyplot as plt
+graph = nx.Graph()
+for i in g.edges:
+	for j in g.edges[i]:
+		graph.add_edge(i, j)
 
-V = {}
 
-# create nodes
-for c in g.nodes():
-    V[c] = Node("Character", name=c)
-    tx.create(V[c])
+node_and_degree = graph.degree()
 
-# save edges
-for i, a in enumerate(g.nodes()):
-    for j, b in enumerate(g.nodes()):
-        if i < j:
-            if b in g[a]:
-                #w = g[a][b]['weight']
-                tx.create(Relationship(V[a], 'INTERACTS', V[b]))
+print(graph.nodes())
+graph.remove_node(u"rsula (Iguarn)")
+graph.remove_node(u"Gerineldo (Mrquez)")
+colors = {}
+colors['ID'] = []
+colors['myvalue'] = []
 
-tx.commit()
+for node, degree in node_and_degree:
+
+	if degree > 30:
+		colors['ID'].append(node)
+		colors['myvalue'].append(4)
+	elif degree > 25:
+		colors['ID'].append(node)
+		colors['myvalue'].append(3.8)
+
+	elif degree > 20:
+		colors['ID'].append(node)
+		colors['myvalue'].append(3.6)
+	elif degree > 15:
+		colors['ID'].append(node)
+		colors['myvalue'].append(3.4)
+
+	elif degree > 10:
+		colors['ID'].append(node)
+		colors['myvalue'].append(3.2)
+
+	elif degree > 5:
+		colors['ID'].append(node)
+		colors['myvalue'].append(3)
+
+	else:
+		colors['ID'].append(node)
+		colors['myvalue'].append(2.8)
+
+
+
+(largest_hub, degree) = sorted(node_and_degree, key = itemgetter(1))[-1]
+
+hub_ego = nx.ego_graph(graph, largest_hub)
+
+colors = pd.DataFrame(colors)
+colors = colors.set_index('ID')
+colors = colors.reindex(hub_ego.nodes())
+pos = nx.spring_layout(hub_ego, scale=5)
+
+
+nx.draw_networkx_edges(hub_ego, pos, alpha=0.2)
+nx.draw_networkx_labels(hub_ego, pos)  
+nx.draw_networkx_nodes(hub_ego, pos, node_color=colors['myvalue'],  cmap= plt.cm.jet, node_size=500, with_labels= False)
+
+plt.show()
