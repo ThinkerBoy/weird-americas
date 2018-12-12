@@ -1,3 +1,7 @@
+"""
+
+This code was modified from https://github.com/Adoni/word2vec_pytorch
+"""
 import numpy
 from collections import deque
 import re
