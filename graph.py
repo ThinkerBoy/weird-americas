@@ -81,3 +81,25 @@ print('Total characters minus solitude nodes:', len(g.nodes()))
 
 nx.write_graphml(g, 'output.graphml')
 
+# save to neo4j
+from py2neo import Graph, Node, Relationship
+
+g4 = Graph(user="neo4j", password="")
+tx = g4.begin()
+
+V = {}
+
+# create nodes
+for c in g.nodes():
+    V[c] = Node("Character", name=c)
+    tx.create(V[c])
+
+# save edges
+for i, a in enumerate(g.nodes()):
+    for j, b in enumerate(g.nodes()):
+        if i < j:
+            if b in g[a]:
+                #w = g[a][b]['weight']
+                tx.create(Relationship(V[a], 'INTERACTS', V[b]))
+
+tx.commit()
